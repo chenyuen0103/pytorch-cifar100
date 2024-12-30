@@ -1,0 +1,30 @@
+{
+    "train.py": {
+        "scripts": "python train.py",
+        "algorithms": {
+            "sgd": {
+                "lr": [0.1, 1.6],
+                "batch_size": [128, 2048],
+                "flags": [[]]
+            },
+            "adabatch": {
+                "lr": [0.1],
+                "batch_size": [128],
+                "flags": [
+                    [],
+                    ["--resize_freq", "20"],
+                    ["--resize_freq", "20", "--adaptive_lr"]
+                ]
+            },
+            "divebatch": {
+                "lr": [0.1],
+                "batch_size": [128],
+                "flags": [
+                    [],
+                    ["--resize_freq", "20"],
+                    ["--resize_freq", "20", "--adaptive_lr"]
+                ]
+            }
+        }
+    }
+}
