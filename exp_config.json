@@ -12,6 +12,7 @@
                 "batch_size": [128],
                 "flags": [
                     [],
+                    ["adaptive_lr"],
                     ["--resize_freq", "20"],
                     ["--resize_freq", "20", "--adaptive_lr"]
                 ]
