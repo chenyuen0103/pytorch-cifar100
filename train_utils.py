@@ -227,7 +227,7 @@ def log_metrics(log_file, epoch, train_loss, train_acc, val_loss, val_acc, lr, b
     with open(log_file, 'a', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=[
             'epoch', 'train_loss', 'train_acc', 'val_loss', 'val_acc',
-            'learning_rate', 'batch_size', 'epoch_time', 'eval_time','memory_allocated_mb', 'memory_reserved_mb', 'grad_diversity'
+            'learning_rate', 'batch_size', 'epoch_time', 'eval_time', 'abs_time', 'memory_allocated_mb', 'memory_reserved_mb', 'grad_diversity'
         ])
         writer.writerow({
             'epoch': epoch,
