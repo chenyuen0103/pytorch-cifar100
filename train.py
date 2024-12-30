@@ -380,7 +380,7 @@ if __name__ == '__main__':
             train_acc=train_metrics["train_accuracy"],
             val_loss=val_loss,
             val_acc=val_acc,
-            lr=scheduler.get_last_lr()[0],
+            lr=optimizer.param_groups[0]['lr'],
             batch_size=batch_size,
             epoch_time=train_metrics.get("epoch_time", 0),
             eval_time=eval_time,

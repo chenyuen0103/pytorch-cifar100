@@ -15,15 +15,6 @@
                     ["--resize_freq", "20"],
                     ["--resize_freq", "20", "--adaptive_lr"]
                 ]
-            },
-            "divebatch": {
-                "lr": [0.1],
-                "batch_size": [128],
-                "flags": [
-                    [],
-                    ["--resize_freq", "20"],
-                    ["--resize_freq", "20", "--adaptive_lr"]
-                ]
             }
         }
     }
