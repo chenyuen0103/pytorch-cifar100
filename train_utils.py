@@ -220,7 +220,7 @@ def test(model, optimizer, scheduler, testloader, criterion, device, epoch, prog
 
 
 
-def log_metrics(log_file, epoch, train_loss, train_acc, val_loss, val_acc, lr, batch_size, epoch_time, eval_time, memory_allocated, memory_reserved, grad_diversity=None):
+def log_metrics(log_file, epoch, train_loss, train_acc, val_loss, val_acc, lr, batch_size, epoch_time, eval_time, abs_time,memory_allocated, memory_reserved, grad_diversity=None):
     memory_allocated_mb = memory_allocated / (1024 * 1024)
     memory_reserved_mb = memory_reserved / (1024 * 1024)
     
@@ -239,6 +239,7 @@ def log_metrics(log_file, epoch, train_loss, train_acc, val_loss, val_acc, lr, b
             'batch_size': batch_size,
             'epoch_time': epoch_time,  # Time taken for one epoch
             'eval_time': eval_time,  # Time taken for evaluation
+            'abs_time': abs_time,  # Absolute time taken
             'memory_allocated_mb': round(memory_allocated_mb, 2),
             'memory_reserved_mb': round(memory_reserved_mb, 2),
             'grad_diversity': round(grad_diversity, 4) if grad_diversity is not None else None,
