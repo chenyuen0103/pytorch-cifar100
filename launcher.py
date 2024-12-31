@@ -8,6 +8,7 @@ from typing import List
 import pynvml
 import itertools
 import json
+import argparse
 
 def shutdown_nvml():
     """
@@ -53,7 +54,7 @@ def get_available_gpus(threshold: int = 10, min_free_mem: int = 4000) -> List[in
 
     return available_gpus
 
-def generate_commands_from_config(config: dict):
+def generate_commands_from_config(config: dict, args):
     """
     Generates a list of commands based on the provided configuration, including different seeds.
 
@@ -75,7 +76,10 @@ def generate_commands_from_config(config: dict):
             flags_list = algo_params.get("flags", [[]])
             for seed, lr, bs, flags in itertools.product(seed_range, lrs, batch_sizes, flags_list):
                 flags_str = ' '.join(flags)
-                cmd = f"{scripts_cmd} --algorithm {algo} --lr {lr} --batch_size {bs} --seed {seed} {flags_str}".strip()
+                if args.resume:
+                    cmd = f"{scripts_cmd} --algorithm {algo} --lr {lr} --batch_size {bs} --seed {seed} --resume {flags_str}".strip()
+                else:
+                    cmd = f"{scripts_cmd} --algorithm {algo} --lr {lr} --batch_size {bs} --seed {seed} {flags_str}".strip()
                 commands.append(cmd)
     return commands
 
@@ -169,21 +173,27 @@ def load_config(config_path: str):
 #                 commands.append(cmd.strip())
 #     return commands
 
-def generate_commands():
+def generate_commands(args):
     """
     Loads configuration and generates a list of commands.
 
     Returns:
         List[str]: List of shell commands.
     """
-    config_path = "exp_config.json"  # Path to your configuration file
+    config_path = args.config_path
     config = load_config(config_path)
-    commands = generate_commands_from_config(config)
+    commands = generate_commands_from_config(config, args)
     return commands
 
 def main():
+
+
+    parser = argparse.ArgumentParser(description="Multi-GPU Launcher")
+    parser.add_argument("--resume", action='store_true', help="Resume training from a checkpoint")
+    parser.add_argument("--config_path", type=str, default= 'exp_config.json',help="Path to the configuration file")
+    args = parser.parse_args()
     # Generate the list of commands dynamically
-    commands = generate_commands()
+    commands = generate_commands(args)
 
     # Detect available GPUs with memory constraints
     available_gpus = get_available_gpus(threshold=10, min_free_mem=4000)  # Adjust thresholds as needed

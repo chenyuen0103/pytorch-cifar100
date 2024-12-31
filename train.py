@@ -32,6 +32,32 @@ import torch.backends.cudnn as cudnn
 from backpack import extend
 import time
 
+
+def get_model_state_dict(checkpoint):
+    """
+    Retrieves the model's state dictionary from the checkpoint.
+
+    Args:
+        checkpoint (dict): The loaded checkpoint dictionary.
+
+    Returns:
+        dict: The state dictionary of the model.
+
+    Raises:
+        KeyError: If neither 'net' nor 'model' nor 'state_dict' keys are found in the checkpoint.
+    """
+    if 'net' in checkpoint:
+        return checkpoint['net']
+    elif 'model' in checkpoint:
+        return checkpoint['model']
+    elif 'state_dict' in checkpoint:
+        return checkpoint['state_dict']
+    else:
+        available_keys = list(checkpoint.keys())
+        raise KeyError(f"Expected keys ['net', 'model', 'state_dict'] not found in checkpoint. Available keys: {available_keys}")
+
+
+
 def train(epoch):
     set_seed(args.seed)
     start = time.time()
@@ -242,7 +268,7 @@ if __name__ == '__main__':
     if args.algorithm != 'sgd' and args.adaptive_lr:
         last_checkpoint_path = last_checkpoint_path.replace('.pth', '_rescale.pth')
         best_checkpoint_path = best_checkpoint_path.replace('.pth', '_rescale.pth')
-        log_file = log_file.replace('.csv', '_rescale.csv')
+        # log_file = log_file.replace('.csv', '_rescale.csv')
         
     log_exists = os.path.exists(log_file)
     # Resume from checkpoint
@@ -250,7 +276,7 @@ if __name__ == '__main__':
     if args.resume:
         if os.path.exists(last_checkpoint_path):
             checkpoint = torch.load(last_checkpoint_path)
-            net.load_state_dict(checkpoint['net'])
+            net.load_state_dict(get_model_state_dict(checkpoint))
             optimizer.load_state_dict(checkpoint['optimizer'])
             scheduler.load_state_dict(checkpoint['scheduler'])
             best_acc = checkpoint['best_acc']
@@ -258,11 +284,16 @@ if __name__ == '__main__':
             file_mode = 'a'
             row = None
             # load the batch size from the csv file
+            epochs = []
             with open(log_file, 'r') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    pass
-                batch_size = int(row['batch_size'])
+                    epochs.append(int(row['epoch']))
+            if row is not None:
+                max_completed_epoch = max(epochs)
+
+            if max_completed_epoch >= start_epoch:
+                start_epoch = max_completed_epoch + 1
 
         #data preprocessing:
     trainloader = get_training_dataloader(
@@ -369,7 +400,9 @@ if __name__ == '__main__':
                 continue
 
         # train(epoch)
+        epoch_start_time = time.time()
         train_metrics = trainer.train_epoch(trainloader, epoch)
+        epoch_end_time = time.time()
         val_loss, val_acc, eval_time = eval_training(epoch)
 
 
@@ -382,7 +415,7 @@ if __name__ == '__main__':
             val_acc=val_acc,
             lr=optimizer.param_groups[0]['lr'],
             batch_size=batch_size,
-            epoch_time=train_metrics.get("epoch_time", 0),
+            epoch_time=epoch_end_time - epoch_start_time,
             eval_time=eval_time,
             abs_time = time.time() - abs_start_time,
             memory_allocated=torch.cuda.memory_allocated() if device == 'cuda' else 0,
