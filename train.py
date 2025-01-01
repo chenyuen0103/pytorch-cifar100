@@ -4,6 +4,8 @@
 """ train network using pytorch
 
 author baiyu
+
+../../../../scratch/bcxt/yian3/checkpoint
 """
 
 import os
@@ -193,7 +195,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_batch_size', default=2048, type=int, help='Maximum batch size for DiveBatch')
     parser.add_argument('--delta', default=0.1, type=float, help='Delta for GradDiversity')
     parser.add_argument('--log_dir', default='./logs', type=str, help='Directory to save logs')
-    parser.add_argument('--checkpoint_dir', default='/projects/bdeb/chenyuen0103/checkpoint', type=str, help='Directory to save checkpoints')
+    parser.add_argument('--checkpoint_dir', default='../../../../scratch/bcxt/yian3/checkpoint', type=str, help='Directory to save checkpoints')
     parser.add_argument('--seed', default=1, type=int, help='Random seed')
     args = parser.parse_args()
 
