@@ -55,9 +55,8 @@ def get_model_state_dict(checkpoint):
     elif 'state_dict' in checkpoint:
         return checkpoint['state_dict']
     else:
-        available_keys = list(checkpoint.keys())
-        raise KeyError(f"Expected keys ['net', 'model', 'state_dict'] not found in checkpoint. Available keys: {available_keys}")
-
+        return checkpoint
+        
 
 
 def train(epoch):
@@ -141,6 +140,7 @@ def eval_training(epoch=0, tb=False):
         'current_acc': acc,
         'optimizer': optimizer.state_dict(),
         'scheduler': scheduler.state_dict(),
+        'batch_size': batch_size, 
         'is_best': is_best
     }
 
@@ -276,15 +276,21 @@ if __name__ == '__main__':
     # Resume from checkpoint
     file_mode = 'w'
     if args.resume:
-        breakpoint()
+        # breakpoint()
         if os.path.exists(last_checkpoint_path):
             checkpoint = torch.load(last_checkpoint_path)
             net.load_state_dict(get_model_state_dict(checkpoint))
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            scheduler.load_state_dict(checkpoint['scheduler'])
-            best_acc = checkpoint['best_acc']
-            start_epoch = checkpoint['epoch']
+            try:
+                optimizer.load_state_dict(checkpoint['optimizer'])
+                scheduler.load_state_dict(checkpoint['scheduler'])
+                best_acc = checkpoint['best_acc']
+                start_epoch = checkpoint['epoch']
+                batch_size = checkpoint['batch_size']
+            except KeyError:
+                print("Could not load optimizer and scheduler state from the checkpoint.")
+
             file_mode = 'a'
+        # breakpoint()
         row = None
         # load the batch size from the csv file
         epochs = []
@@ -293,6 +299,7 @@ if __name__ == '__main__':
             for row in reader:
                 epochs.append(int(row['epoch'])) if row else None
         # if log file is not empty
+        # breakpoint()
         if row:
             max_epoch_log = max(epochs)
             
@@ -300,6 +307,7 @@ if __name__ == '__main__':
                 # exit the program
                 print(f"Epoch {args.epochs} already exists in the log file. Exiting...")
                 exit()
+            batch_size = int(row['batch_size'])
 
         #data preprocessing:
     trainloader = get_training_dataloader(
@@ -327,62 +335,13 @@ if __name__ == '__main__':
         if not log_exists or not args.resume:
             writer.writeheader()
 
-    # if args.resume:
-    #     recent_folder = most_recent_folder(os.path.join(settings.CHECKPOINT_PATH, args.net), fmt=settings.DATE_FORMAT)
-    #     if not recent_folder:
-    #         raise Exception('no recent folder were found')
-
-    #     checkpoint_path = os.path.join(settings.CHECKPOINT_PATH, args.net, recent_folder)
-
-    # else:
-    #     checkpoint_path = os.path.join(settings.CHECKPOINT_PATH, args.net, settings.TIME_NOW)
-
-    #use tensorboard
-    if not os.path.exists(settings.LOG_DIR):
-        os.mkdir(settings.LOG_DIR)
-
-    #since tensorboard can't overwrite old values
-    # #so the only way is to create a new tensorboard log
-    # writer = SummaryWriter(log_dir=os.path.join(
-    #         settings.LOG_DIR, args.net, settings.TIME_NOW))
-    # input_tensor = torch.Tensor(1, 3, 32, 32)
-    # if args.gpu:
-    #     input_tensor = input_tensor.cuda()
-    # writer.add_graph(net, input_tensor)
-
-    # #create checkpoint folder to save model
-    # if not os.path.exists(checkpoint_path):
-    #     os.makedirs(checkpoint_path)
-    # checkpoint_path = os.path.join(checkpoint_path, '{net}-{epoch}-{type}.pth')
-
-    # best_acc = 0.0
-    # if args.resume:
-    #     best_weights = best_acc_weights(os.path.join(settings.CHECKPOINT_PATH, args.net, recent_folder))
-    #     if best_weights:
-    #         weights_path = os.path.join(settings.CHECKPOINT_PATH, args.net, recent_folder, best_weights)
-    #         print('found best acc weights file:{}'.format(weights_path))
-    #         print('load best training file to test acc...')
-    #         net.load_state_dict(torch.load(weights_path))
-    #         best_acc = eval_training(tb=False)
-    #         print('best acc is {:0.2f}'.format(best_acc))
-
-    #     recent_weights_file = most_recent_weights(os.path.join(settings.CHECKPOINT_PATH, args.net, recent_folder))
-    #     if not recent_weights_file:
-    #         raise Exception('no recent weights file were found')
-    #     weights_path = os.path.join(settings.CHECKPOINT_PATH, args.net, recent_folder, recent_weights_file)
-    #     print('loading weights file {} to resume training.....'.format(weights_path))
-    #     net.load_state_dict(torch.load(weights_path))
-
-    #     resume_epoch = last_epoch(os.path.join(settings.CHECKPOINT_PATH, args.net, recent_folder))
-
-
 
     if not os.path.exists(log_file) or file_mode == 'w':
         with open(log_file, file_mode, newline='') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
     # Training and Testing
-    trainer_cls = SGDTrainer if args.algorithm == 'sgd' else DiveBatchTrainer
+    trainer_cls = SGDTrainer if args.algorithm in ['sgd', 'adabatch'] else DiveBatchTrainer
     trainer_args = {
         "model": net,
         "optimizer": optimizer,
@@ -397,19 +356,52 @@ if __name__ == '__main__':
     trainer = trainer_cls(**trainer_args)
     old_grad_diversity = 1.0 if args.algorithm == 'divebatch' else None
 
-
+    rescale_ratio = 1
     batch_size = args.batch_size
     abs_start_time = time.time()
     for epoch in range(1, settings.EPOCH + 1):
         if args.resume:
             if epoch <= start_epoch:
                 continue
-
         # train(epoch)
         epoch_start_time = time.time()
         train_metrics = trainer.train_epoch(trainloader, epoch)
         epoch_end_time = time.time()
         val_loss, val_acc, eval_time = eval_training(epoch)
+
+        if epoch % args.resize_freq == 0 and batch_size < args.max_batch_size and args.algorithm in ['divebatch', 'adabatch']:
+            old_batch_size = batch_size
+            if args.algorithm == 'divebatch':
+                grad_diversity = train_metrics.get("grad_diversity")
+                rescale_ratio *= max((grad_diversity / old_grad_diversity),1)
+                # rescale_ratio = max((grad_diversity / 1.0),1)
+
+            elif args.algorithm == 'adabatch':
+                rescale_ratio *= 2
+
+            batch_size = int(min(old_batch_size * rescale_ratio, args.max_batch_size))
+            
+            if batch_size != old_batch_size:
+                # Update the batch size argument
+                # batch_size = new_batch_size
+                # print(f"Updating DataLoader with new batch size: {batch_size}")
+                # trainer.accum_steps = new_batch_size // args.batch_size
+                # Recreate DataLoader with the new batch size
+                print(f"Recreating trainloader with batch size: {batch_size}...")
+                trainloader = torch.utils.data.DataLoader(
+                    trainloader.dataset,
+                    batch_size=batch_size,
+                    shuffle=True, 
+                    num_workers=1, 
+                    pin_memory=True
+                )
+
+        if args.adaptive_lr:
+            # rescale the learning rate
+            for param_group in optimizer.param_groups:
+                param_group['lr'] *= batch_size / old_batch_size
+
+
 
 
         log_metrics(
@@ -429,52 +421,14 @@ if __name__ == '__main__':
             grad_diversity=train_metrics.get("grad_diversity")
         )
 
-        #start to save best performance model after learning rate decay to 0.01
 
-        # if epoch > settings.MILESTONES[1] and best_acc < val_acc:
-        #     weights_path = best_checkpoint_path.format(net=args.net, epoch=epoch, type='best')
-        #     print('saving weights file to {}'.format(weights_path))
-        #     # torch.save(net.state_dict(), weights_path)
-        #     best_acc = val_acc
-        #     continue
-
-        # if not epoch % settings.SAVE_EPOCH:
-        #     weights_path = last_checkpoint_path.format(net=args.net, epoch=epoch, type='regular')
-        #     print('saving weights file to {}'.format(weights_path))
-        #     torch.save(net.state_dict(), weights_path)
+            
+        # Scheduler Step after rescaling
         if epoch >= args.warm:
             scheduler.step(epoch)
         elif epoch < args.warm:
             warmup_scheduler.step()
-        if epoch % args.resize_freq == 0 and batch_size < args.max_batch_size and args.algorithm in ['divebatch', 'adabatch']:
-            old_batch_size = batch_size
-            if args.algorithm == 'divebatch':
-                grad_diversity = train_metrics.get("grad_diversity")
-                rescale_ratio = max((grad_diversity / old_grad_diversity),1)
-            elif args.algorithm == 'adabatch':
-                rescale_ration = 2
 
-            batch_size = int(min(old_batch_size * rescale_ratio, args.max_batch_size))
-            
-            if batch_size != old_batch_size:
-                # Update the batch size argument
-                # batch_size = new_batch_size
-                # print(f"Updating DataLoader with new batch size: {batch_size}")
-                # trainer.accum_steps = new_batch_size // args.batch_size
-                # Recreate DataLoader with the new batch size
-                print(f"Recreating trainloader with batch size: {batch_size}...")
-                trainloader = torch.utils.data.DataLoader(
-                    trainloader.dataset,
-                    batch_size=batch_size,
-                    shuffle=True, 
-                    num_workers=1, 
-                    pin_memory=True
-                )
-
-            if args.adaptive_lr:
-                # rescale the learning rate
-                for param_group in optimizer.param_groups:
-                    param_group['lr'] *= rescale_ratio
 
 f.close()
 
