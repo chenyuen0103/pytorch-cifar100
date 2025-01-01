@@ -195,7 +195,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_batch_size', default=2048, type=int, help='Maximum batch size for DiveBatch')
     parser.add_argument('--delta', default=0.1, type=float, help='Delta for GradDiversity')
     parser.add_argument('--log_dir', default='./logs', type=str, help='Directory to save logs')
-    parser.add_argument('--checkpoint_dir', default='../../../../scratch/bcxt/yian3/checkpoint', type=str, help='Directory to save checkpoints')
+    parser.add_argument('--checkpoint_dir', default='/projects/bdeb/chenyuen0103/checkpoint', type=str, help='Directory to save checkpoints')
     parser.add_argument('--seed', default=1, type=int, help='Random seed')
     args = parser.parse_args()
 
@@ -276,6 +276,7 @@ if __name__ == '__main__':
     # Resume from checkpoint
     file_mode = 'w'
     if args.resume:
+        breakpoint()
         if os.path.exists(last_checkpoint_path):
             checkpoint = torch.load(last_checkpoint_path)
             net.load_state_dict(get_model_state_dict(checkpoint))
@@ -430,17 +431,17 @@ if __name__ == '__main__':
 
         #start to save best performance model after learning rate decay to 0.01
 
-        if epoch > settings.MILESTONES[1] and best_acc < val_acc:
-            weights_path = best_checkpoint_path.format(net=args.net, epoch=epoch, type='best')
-            print('saving weights file to {}'.format(weights_path))
-            torch.save(net.state_dict(), weights_path)
-            best_acc = val_acc
-            continue
+        # if epoch > settings.MILESTONES[1] and best_acc < val_acc:
+        #     weights_path = best_checkpoint_path.format(net=args.net, epoch=epoch, type='best')
+        #     print('saving weights file to {}'.format(weights_path))
+        #     # torch.save(net.state_dict(), weights_path)
+        #     best_acc = val_acc
+        #     continue
 
-        if not epoch % settings.SAVE_EPOCH:
-            weights_path = last_checkpoint_path.format(net=args.net, epoch=epoch, type='regular')
-            print('saving weights file to {}'.format(weights_path))
-            torch.save(net.state_dict(), weights_path)
+        # if not epoch % settings.SAVE_EPOCH:
+        #     weights_path = last_checkpoint_path.format(net=args.net, epoch=epoch, type='regular')
+        #     print('saving weights file to {}'.format(weights_path))
+        #     torch.save(net.state_dict(), weights_path)
         if epoch >= args.warm:
             scheduler.step(epoch)
         elif epoch < args.warm:
