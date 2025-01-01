@@ -369,6 +369,29 @@ if __name__ == '__main__':
         epoch_end_time = time.time()
         val_loss, val_acc, eval_time = eval_training(epoch)
 
+        log_metrics(
+            log_file=log_file,
+            epoch=epoch,
+            train_loss=train_metrics["train_loss"],
+            train_acc=train_metrics["train_accuracy"],
+            val_loss=val_loss,
+            val_acc=val_acc,
+            lr=optimizer.param_groups[0]['lr'],
+            batch_size=batch_size,
+            epoch_time=epoch_end_time - epoch_start_time,
+            eval_time=eval_time,
+            abs_time = time.time() - abs_start_time,
+            memory_allocated=torch.cuda.memory_allocated() if device == 'cuda' else 0,
+            memory_reserved=torch.cuda.memory_reserved() if device == 'cuda' else 0,
+            grad_diversity=train_metrics.get("grad_diversity")
+        )
+        # old_lr = optimizer.param_groups[0]['lr']
+        # Scheduler Step after rescaling
+        if epoch >= args.warm:
+            scheduler.step(epoch)
+        elif epoch < args.warm:
+            warmup_scheduler.step()
+        scheduler_effect = scheduler.get_last_lr()[0] / args.lr
         if epoch % args.resize_freq == 0 and batch_size < args.max_batch_size and args.algorithm in ['divebatch', 'adabatch']:
             old_batch_size = batch_size
             if args.algorithm == 'divebatch':
@@ -377,7 +400,7 @@ if __name__ == '__main__':
                 # rescale_ratio = max((grad_diversity / 1.0),1)
 
             elif args.algorithm == 'adabatch':
-                rescale_ratio *= 2
+                rescale_ratio = 2
 
             batch_size = int(min(old_batch_size * rescale_ratio, args.max_batch_size))
             
@@ -397,37 +420,20 @@ if __name__ == '__main__':
                 )
 
         if args.adaptive_lr:
+            breakpoint()
             # rescale the learning rate
             for param_group in optimizer.param_groups:
-                param_group['lr'] *= batch_size / old_batch_size
+                param_group['lr'] *= (batch_size / args.batch_size)
+                param_group['lr'] *= scheduler_effect
+            breakpoint()
 
 
 
 
-        log_metrics(
-            log_file=log_file,
-            epoch=epoch,
-            train_loss=train_metrics["train_loss"],
-            train_acc=train_metrics["train_accuracy"],
-            val_loss=val_loss,
-            val_acc=val_acc,
-            lr=optimizer.param_groups[0]['lr'],
-            batch_size=batch_size,
-            epoch_time=epoch_end_time - epoch_start_time,
-            eval_time=eval_time,
-            abs_time = time.time() - abs_start_time,
-            memory_allocated=torch.cuda.memory_allocated() if device == 'cuda' else 0,
-            memory_reserved=torch.cuda.memory_reserved() if device == 'cuda' else 0,
-            grad_diversity=train_metrics.get("grad_diversity")
-        )
 
 
             
-        # Scheduler Step after rescaling
-        if epoch >= args.warm:
-            scheduler.step(epoch)
-        elif epoch < args.warm:
-            warmup_scheduler.step()
+
 
 
 f.close()
