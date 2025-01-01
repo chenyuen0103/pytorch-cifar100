@@ -144,7 +144,7 @@ def eval_training(epoch=0, tb=False):
         'is_best': is_best
     }
 
-    os.makedirs(checkpoint_dir, exist_ok=True)
+    # os.makedirs(checkpoint_dir, exist_ok=True)
     torch.save(state, last_checkpoint_path)
     if is_best:
         torch.save(state, best_checkpoint_path)
