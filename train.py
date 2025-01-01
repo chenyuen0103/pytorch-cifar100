@@ -282,18 +282,21 @@ if __name__ == '__main__':
             best_acc = checkpoint['best_acc']
             start_epoch = checkpoint['epoch']
             file_mode = 'a'
-            row = None
-            # load the batch size from the csv file
-            epochs = []
-            with open(log_file, 'r') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    epochs.append(int(row['epoch']))
-            if row is not None:
-                max_completed_epoch = max(epochs)
-
-            if max_completed_epoch >= start_epoch:
-                start_epoch = max_completed_epoch + 1
+        row = None
+        # load the batch size from the csv file
+        epochs = []
+        with open(log_file, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                epochs.append(int(row['epoch'])) if row else None
+        # if log file is not empty
+        if row:
+            max_epoch_log = max(epochs)
+            
+            if max_epoch_log >= args.epochs-1:
+                # exit the program
+                print(f"Epoch {args.epochs} already exists in the log file. Exiting...")
+                exit()
 
         #data preprocessing:
     trainloader = get_training_dataloader(
