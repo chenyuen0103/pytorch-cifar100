@@ -195,7 +195,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_batch_size', default=2048, type=int, help='Maximum batch size for DiveBatch')
     parser.add_argument('--delta', default=0.1, type=float, help='Delta for GradDiversity')
     parser.add_argument('--log_dir', default='./logs', type=str, help='Directory to save logs')
-    parser.add_argument('--checkpoint_dir', default='/projects/bdeb/chenyuen0103/checkpoint', type=str, help='Directory to save checkpoints')
+    parser.add_argument('--checkpoint_dir', default='../../../../scratch/bcxt/yian3/checkpoint', type=str, help='Directory to save checkpoints')
     parser.add_argument('--seed', default=1, type=int, help='Random seed')
     args = parser.parse_args()
 
@@ -275,6 +275,18 @@ if __name__ == '__main__':
     log_exists = os.path.exists(log_file)
     # Resume from checkpoint
     file_mode = 'w'
+    with open(log_file, file_mode, newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        # Write the header only if the file is new
+        if not log_exists or not args.resume:
+            writer.writeheader()
+
+
+    if not os.path.exists(log_file) or file_mode == 'w':
+        with open(log_file, file_mode, newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+    
     if args.resume:
         # breakpoint()
         if os.path.exists(last_checkpoint_path):
@@ -329,17 +341,17 @@ if __name__ == '__main__':
     warmup_scheduler = WarmUpLR(optimizer, iter_per_epoch * args.warm)
 
 
-    with open(log_file, file_mode, newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        # Write the header only if the file is new
-        if not log_exists or not args.resume:
-            writer.writeheader()
+    # with open(log_file, file_mode, newline='') as f:
+    #     writer = csv.DictWriter(f, fieldnames=fieldnames)
+    #     # Write the header only if the file is new
+    #     if not log_exists or not args.resume:
+    #         writer.writeheader()
 
 
-    if not os.path.exists(log_file) or file_mode == 'w':
-        with open(log_file, file_mode, newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
+    # if not os.path.exists(log_file) or file_mode == 'w':
+    #     with open(log_file, file_mode, newline='') as f:
+    #         writer = csv.DictWriter(f, fieldnames=fieldnames)
+    #         writer.writeheader()
     # Training and Testing
     trainer_cls = SGDTrainer if args.algorithm in ['sgd', 'adabatch'] else DiveBatchTrainer
     trainer_args = {
@@ -420,12 +432,12 @@ if __name__ == '__main__':
                 )
 
         if args.adaptive_lr:
-            breakpoint()
+            #breakpoint()
             # rescale the learning rate
             for param_group in optimizer.param_groups:
                 param_group['lr'] *= (batch_size / args.batch_size)
                 param_group['lr'] *= scheduler_effect
-            breakpoint()
+            #breakpoint()
 
 
 
