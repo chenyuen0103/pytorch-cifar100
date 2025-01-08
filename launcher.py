@@ -107,6 +107,8 @@ def multi_gpu_launcher(commands: List[str], gpus: List[int]):
                 if proc is None or proc.poll() is not None:
                     if job_queue:
                         cmd = job_queue.pop(0)
+                        # if "--adaptive_lr" in cmd:
+                        #     cmd = cmd.replace("--resume", "")
                         # Prefix the command with CUDA_VISIBLE_DEVICES to assign it to the specific GPU
                         full_cmd = f"CUDA_VISIBLE_DEVICES={gpu} {cmd}"
                         print(f"\nLaunching on GPU {gpu}: {cmd}")

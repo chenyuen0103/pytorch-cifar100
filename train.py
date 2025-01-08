@@ -294,20 +294,29 @@ if __name__ == '__main__':
         row = None
         # load the batch size from the csv file
         epochs = []
-        with open(log_file, 'r') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                epochs.append(int(row['epoch'])) if row else None
-        # if log file is not empty
-        # breakpoint()
-        if row:
-            max_epoch_log = max(epochs)
-            
-            if max_epoch_log >= args.epochs-1:
-                # exit the program
-                print(f"Epoch {args.epochs} already exists in the log file. Exiting...")
-                exit()
-            batch_size = int(row['batch_size'])
+        if log_exists:
+            with open(log_file, 'r') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row:
+                        epochs.append(int(row['epoch'])) if row else None
+    
+            # if log file is not empty
+            # breakpoint()
+            # if args.adaptive_lr:
+            #     breakpoint()
+            # if args.adaptive_lr:
+            #     breakpoint()
+            if row:
+                max_epoch_log = max(epochs)
+                batch_size = int(row['batch_size'])
+                # breakpoint()
+                if (start_epoch == args.epochs) and max_epoch_log == args.epochs-1:
+                    start_epoch -= 1
+                elif max_epoch_log >= args.epochs-1:
+                    # exit the program
+                    print(f"Epoch {args.epochs} already exists in the log file. Exiting...")
+                    exit()
 
         #data preprocessing:
     trainloader = get_training_dataloader(
@@ -359,6 +368,7 @@ if __name__ == '__main__':
     rescale_ratio = 1
     batch_size = args.batch_size
     abs_start_time = time.time()
+    print(f"Starting training from epoch {start_epoch}...")
     for epoch in range(1, settings.EPOCH + 1):
         if args.resume:
             if epoch <= start_epoch:
@@ -368,7 +378,7 @@ if __name__ == '__main__':
         train_metrics = trainer.train_epoch(trainloader, epoch)
         epoch_end_time = time.time()
         val_loss, val_acc, eval_time = eval_training(epoch)
-
+        # breakpoint()
         log_metrics(
             log_file=log_file,
             epoch=epoch,
@@ -420,12 +430,12 @@ if __name__ == '__main__':
                 )
 
         if args.adaptive_lr:
-            breakpoint()
+            # breakpoint()
             # rescale the learning rate
             for param_group in optimizer.param_groups:
                 param_group['lr'] *= (batch_size / args.batch_size)
                 param_group['lr'] *= scheduler_effect
-            breakpoint()
+            # breakpoint()
 
 
 

@@ -91,13 +91,13 @@ class DiveBatchTrainer(Trainer):
             outputs = self.model(inputs)
             loss = self.criterion(outputs, targets)
 
-            if (self.current_batch_size != self.max_batch_size) or (self.resize_freq != 0 and (epoch) % self.resize_freq == 0):
+            if (self.current_batch_size != self.max_batch_size) and (self.resize_freq != 0 and (epoch) % self.resize_freq == 0):
                 set_bn_eval(self.model)
                 with backpack(BatchL2Grad()):
                     loss.backward()
                 set_bn_train(self.model)
-                actual_batch_size = inputs.size(0)
-                grad_square_sums = torch.zeros(actual_batch_size, device='cpu')
+                # actual_batch_size = inputs.size(0)
+                # grad_square_sums = torch.zeros(actual_batch_size, device='cpu')
                 
                 for j, param in enumerate(self.model.parameters()):
                     accumulated_grads[j] += param.grad.detach().cpu()
