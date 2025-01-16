@@ -30,11 +30,13 @@ class Trainer:
 
 class SGDTrainer(Trainer):
     def train_epoch(self, dataloader, epoch):
+        torch.cuda.reset_peak_memory_stats()
+        epoch_start_time = time.time()
         self.model.train()
         train_loss = 0
         correct = 0
         total = 0
-        epoch_start_time = time.time()
+        
 
         for batch_idx, (inputs, targets) in enumerate(dataloader):
             inputs, targets = inputs.to(self.device), targets.to(self.device)
@@ -43,7 +45,6 @@ class SGDTrainer(Trainer):
             loss = self.criterion(outputs, targets)
             loss.backward()
             self.optimizer.step()
-
             train_loss += loss.item()
             _, predicted = outputs.max(1)
             total += targets.size(0)
@@ -52,12 +53,18 @@ class SGDTrainer(Trainer):
             progress_bar(batch_idx, len(dataloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
                          % (train_loss / (batch_idx + 1), 100. * correct / total, correct, total))
 
+        peak_memory_allocated = torch.cuda.max_memory_allocated()
+        peak_memory_reserved = torch.cuda.max_memory_reserved()
+
         epoch_time = time.time() - epoch_start_time
         train_acc = 100. * correct / total
         return {
             "train_loss": train_loss / len(dataloader),
             "train_accuracy": train_acc,
-            "epoch_time": epoch_time
+            "epoch_time": epoch_time,
+            "memory_allocated": peak_memory_allocated,
+            "memory_reserved": peak_memory_reserved,
+
         }
 
 
@@ -77,6 +84,7 @@ class DiveBatchTrainer(Trainer):
             self.criterion = extend(criterion)
 
     def train_epoch(self, dataloader, epoch):
+        torch.cuda.reset_peak_memory_stats()
         self.model.train()
         train_loss, correct, total = 0, 0, 0
         accumulated_grads = [torch.zeros_like(param.detach().cpu()) for param in self.model.parameters()]
@@ -120,10 +128,15 @@ class DiveBatchTrainer(Trainer):
         # breakpoint()
         grad_diversity = self.compute_gradient_diversity(grad_sum_norm, individual_grad_norm_sum)
         self.last_grad_diversity = grad_diversity
+
+        peak_memory_allocated = torch.cuda.max_memory_allocated()
+        peak_memory_reserved = torch.cuda.max_memory_reserved()
         return {
             "train_loss": train_loss / len(dataloader),
             "train_accuracy": 100. * correct / total,
-            "grad_diversity": grad_diversity
+            "grad_diversity": grad_diversity,
+            "memory_allocated": peak_memory_allocated,
+            "peak_memory_reserved": peak_memory_reserved
         }
 
     def compute_gradient_diversity(self, grad_sum_norm, individual_grad_norms):

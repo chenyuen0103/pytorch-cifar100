@@ -56,7 +56,20 @@ def get_model_state_dict(checkpoint):
         return checkpoint['state_dict']
     else:
         return checkpoint
-        
+
+def update_batch_size(gd, delta, dataset_size, old_batch_size, max_batch_size):
+    if np.isnan(gd) or np.isinf(gd):
+        return max_batch_size
+    if old_batch_size == max_batch_size:
+        return max_batch_size
+    new_batch_size = int(min(max(delta * gd * dataset_size, old_batch_size), max_batch_size))
+    # breakpoint()
+    # new_batch_size = int(min(max(delta * new_gd * dataset_size, old_batch_size), dataset_size))
+
+    # new_batch_size = int(min(max(delta * new_gd * dataset_size**2, old_batch_size, 2048)))
+    # new_batch_size = int(min(max(delta * new_gd * dataset_size**2, old_batch_size), dataset_size))
+    # print(f'New batch size: {new_batch_size}, outcome of min(max({grad_diversity}, {old_batch_size}), {dataset_size}) = {int(min(max(grad_diversity, old_batch_size), dataset_size))}')
+    return new_batch_size
 
 
 def train(epoch):
@@ -346,10 +359,10 @@ if __name__ == '__main__':
             writer.writeheader()
 
 
-    if not os.path.exists(log_file) or file_mode == 'w':
-        with open(log_file, file_mode, newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
+    # if not os.path.exists(log_file) or file_mode == 'w':
+    #     with open(log_file, file_mode, newline='') as f:
+    #         writer = csv.DictWriter(f, fieldnames=fieldnames)
+    #         writer.writeheader()
     
     # Training and Testing
     trainer_cls = SGDTrainer if args.algorithm in ['sgd', 'adabatch'] else DiveBatchTrainer
@@ -393,8 +406,8 @@ if __name__ == '__main__':
             epoch_time=epoch_end_time - epoch_start_time,
             eval_time=eval_time,
             abs_time = time.time() - abs_start_time,
-            memory_allocated=torch.cuda.memory_allocated() if device == 'cuda' else 0,
-            memory_reserved=torch.cuda.memory_reserved() if device == 'cuda' else 0,
+            memory_allocated=train_metrics["memory_allocated"],
+            memory_reserved=train_metrics["memory_reserved"],
             grad_diversity=train_metrics.get("grad_diversity")
         )
         # old_lr = optimizer.param_groups[0]['lr']
@@ -409,12 +422,11 @@ if __name__ == '__main__':
             if args.algorithm == 'divebatch':
                 grad_diversity = train_metrics.get("grad_diversity")
                 rescale_ratio *= max((grad_diversity / old_grad_diversity),1)
-                # rescale_ratio = max((grad_diversity / 1.0),1)
+                batch_size = update_batch_size(grad_diversity, args.delta, len(trainloader.dataset), old_batch_size, args.max_batch_size)
 
             elif args.algorithm == 'adabatch':
                 rescale_ratio = 2
-
-            batch_size = int(min(old_batch_size * rescale_ratio, args.max_batch_size))
+                batch_size = int(min(old_batch_size * rescale_ratio, args.max_batch_size))
             
             if batch_size != old_batch_size:
                 # Update the batch size argument
@@ -438,16 +450,8 @@ if __name__ == '__main__':
                 param_group['lr'] *= scheduler_effect
 
 
-
-
-
-
-
-            
-
-
-
 f.close()
+
 
 
 
