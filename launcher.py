@@ -66,7 +66,7 @@ def generate_commands_from_config(config: dict, args):
         List[str]: List of shell commands.
     """
     commands = []
-    seed_range = range(1, 6)  # Range of seed values to iterate over
+    seed_range = range(4, 6)  # Range of seed values to iterate over
     for script, details in config.items():
         scripts_cmd = details.get("scripts", "")
         algorithms = details.get("algorithms", {})

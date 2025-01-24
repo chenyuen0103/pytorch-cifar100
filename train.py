@@ -134,12 +134,12 @@ def eval_training(epoch=0, tb=False):
         outputs = net(images)
         loss = criterion(outputs, labels)
 
-        test_loss += loss.item()
+        test_loss += loss.item() * labels.size(0)
         _, preds = outputs.max(1)
         total += labels.size(0)
         correct += preds.eq(labels).sum()
         progress_bar(batch_idx, len(cifar100_test_loader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                        % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+                        % (test_loss/(total), 100.*correct/total, correct, total))
         
     # Save checkpoint.
     acc = 100.*correct/total

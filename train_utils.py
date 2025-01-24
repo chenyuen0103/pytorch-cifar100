@@ -136,7 +136,7 @@ class DiveBatchTrainer(Trainer):
             "train_accuracy": 100. * correct / total,
             "grad_diversity": grad_diversity,
             "memory_allocated": peak_memory_allocated,
-            "peak_memory_reserved": peak_memory_reserved
+            "memory_reserved": peak_memory_reserved
         }
 
     def compute_gradient_diversity(self, grad_sum_norm, individual_grad_norms):

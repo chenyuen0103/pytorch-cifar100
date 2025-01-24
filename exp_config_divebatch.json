@@ -6,8 +6,7 @@
                 "lr": [0.1],
                 "batch_size": [128],
                 "flags": [
-                    ["--delta", "0.005"],
-                    ["--resize_freq", "20", "--delta", "0.0005"]
+                    ["--resize_freq", "20", "--delta", "0.01", "--adaptive_lr"]
                 ]
             }
         }
